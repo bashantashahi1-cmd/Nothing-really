@@ -1,0 +1,6 @@
+recoil:
+  horizontal_sensitivity: 1.05
+  vertical_multiplier: 0.98
+  humanizer_jitter: 0.02
+  burst_delay: 50 #ms
+  
