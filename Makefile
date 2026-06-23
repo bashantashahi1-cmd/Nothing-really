@@ -1,13 +1,17 @@
-# Root Makefile
+# Optimized for Android/ARM64 cross-compilation
 obj-m += src/kpm.o
 
-# Note: You MUST update KDIR to point to your specific kernel source directory
-# For GitHub CI, we usually download the source during the build step.
-KDIR := /usr/src/linux-headers-$(shell uname -r) 
-CROSS_COMPILE := aarch64-linux-android-
+# Force the compiler to ignore specific x86-only flags the kernel is looking for
+EXTRA_CFLAGS += -fno-stack-protector -mno-outline-atomics
+# Disable ftrace/mcount which is causing the -mrecord-mcount error
+ccflags-y := -mno-record-mcount -mfentry
+
+KDIR ?= /lib/modules/$(shell uname -r)/build
+ARCH ?= arm64
+CROSS_COMPILE ?= aarch64-linux-gnu-
 
 all:
-	make -C $(KDIR) M=$(PWD) ARCH=arm64 CROSS_COMPILE=$(CROSS_COMPILE) modules
+	$(MAKE) -C $(KDIR) M=$(PWD) ARCH=$(ARCH) CROSS_COMPILE=$(CROSS_COMPILE) modules
 
 clean:
-	make -C $(KDIR) M=$(PWD) clean
+	$(MAKE) -C $(KDIR) M=$(PWD) clean
