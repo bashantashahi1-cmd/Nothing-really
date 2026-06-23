@@ -1,0 +1,23 @@
+name: Build and Obfuscate
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Compile Driver
+        run: |
+          msbuild DriverProject.sln /p:Configuration=Release /p:Platform=x64
+      - name: Obfuscate Binary
+        run: |
+          # Simple signature rotation by appending random bytes
+          $random = -join ((65..90) + (97..122) | Get-Random -Count 16)
+          Add-Content -Path .\bin\Release\driver.sys -Value $random
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: KPM_Payload
+          path: .\bin\Release\driver.sys
+          
