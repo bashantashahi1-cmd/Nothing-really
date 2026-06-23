@@ -16,11 +16,17 @@ jobs:
       
       - name: Build Module
         run: |
-          # We force ARCH, CROSS_COMPILE, and pass KCFLAGS to mute the x86-specific errors
-          # KDIR is dynamically set to the current runner headers
-          make ARCH=arm64 \
+          # Ensure source is in the expected spot
+          mkdir -p src
+          
+          # Force the kernel build system to acknowledge our module
+          echo "obj-m := src/kpm.o" > Kbuild
+          
+          # Run the build directly against the kernel headers
+          make -C /usr/src/linux-headers-$(uname -r) \
+               M=$(pwd) \
+               ARCH=arm64 \
                CROSS_COMPILE=aarch64-linux-gnu- \
-               KDIR=/usr/src/linux-headers-$(uname -r) \
                KCFLAGS="-w -fno-stack-protector -D__KERNEL__ -DMODULE" \
                modules
         
