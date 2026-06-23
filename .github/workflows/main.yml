@@ -15,23 +15,25 @@ jobs:
       
       - name: Build and Sanitize Module
         run: |
-          # Create a high-performance wrapper that strictly ignores the bad flags
-          echo '#!/bin/sh' > /tmp/aarch64-wrapper
-          echo 'aarch64-linux-gnu-gcc $(echo "$@" | sed "s/-mrecord-mcount//g" | sed "s/-mfentry//g" | sed "s/-mno-record-mcount//g")' >> /tmp/aarch64-wrapper
-          chmod +x /tmp/aarch64-wrapper
+          # 1. Ensure kpm.c exists in the root
+          # If your source is in 'src/kpm.c', move it to root
+          if [ -f "src/kpm.c" ]; then mv src/kpm.c .; fi
           
-          # Force the use of the wrapper for all tools
-          export CC=/tmp/aarch64-wrapper
-          export AS=/tmp/aarch64-wrapper
-          export LD=aarch64-linux-gnu-ld
-          
+          # 2. Create the Kbuild file
           echo "obj-m := kpm.o" > Kbuild
           
-          # Build with environment-level enforcement
+          # 3. Create the Wrapper
+          echo '#!/bin/sh' > /tmp/wrapper
+          echo 'aarch64-linux-gnu-gcc $(echo "$@" | sed "s/-mrecord-mcount//g" | sed "s/-mfentry//g")' >> /tmp/wrapper
+          chmod +x /tmp/wrapper
+          
+          # 4. Build
           make -C /usr/src/linux-headers-$(uname -r) \
                M=$(pwd) \
                ARCH=arm64 \
                CROSS_COMPILE=aarch64-linux-gnu- \
+               CC=/tmp/wrapper \
+               AS=/tmp/wrapper \
                KCFLAGS="-w -fno-stack-protector -D__KERNEL__ -DMODULE" \
                modules
                
@@ -42,10 +44,4 @@ jobs:
         with:
           name: KPM_Final_Payload
           path: kpm.kpm
-          
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KPM_Final_Payload
-          path: kpm.ko
           
