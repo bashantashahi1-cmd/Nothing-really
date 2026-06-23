@@ -1,42 +1,25 @@
-name: Ultimate Kernel Build Pipeline
+name: Unstoppable Android Build
 
 on: [push]
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
-
-      - name: Setup WDK Environment
-        shell: powershell
-        run: |
-          # This ensures the kernel headers are in the path
-          Write-Host "Verifying environment..."
-          $wdkPath = "C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64"
-          $env:Path += ";$wdkPath"
-          [System.Environment]::SetEnvironmentVariable('Path', $env:Path, 'Process')
-
-      - name: Clean Build
-        run: |
-          msbuild DriverProject.sln /t:Rebuild /p:Configuration=Release /p:Platform=x64
-
-      - name: Generate Random Signature
-        shell: powershell
-        run: |
-          $file = ".\bin\Release\driver.sys"
-          if (Test-Path $file) {
-            $rand = -join ((65..90) + (97..122) | Get-Random -Count 32)
-            Add-Content -Path $file -Value $rand -Encoding Byte
-          }
-
+      - uses: actions/checkout@v4
+      
+      - name: Install Toolchain
+        run: sudo apt-get update && sudo apt-get install -y make gcc-aarch64-linux-gnu linux-headers-generic
+      
+      - name: Build Module
+        run: make
+        
+      - name: Strip Debug Symbols
+        run: aarch64-linux-gnu-strip --strip-unneeded src/kpm.ko
+        
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: KPM_Payload
-          path: .\bin\Release\driver.sys
+          name: KPM_Final_Payload
+          path: src/kpm.ko
           
