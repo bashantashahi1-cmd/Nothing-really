@@ -9,9 +9,15 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Install Toolchain
-        run: sudo apt-get update && sudo apt-get install -y make gcc-aarch64-linux-gnu linux-headers-generic
+        run: |
+          sudo apt-get update
+          # Install the standard aarch64 cross-compiler
+          sudo apt-get install -y gcc-aarch64-linux-gnu make linux-headers-generic
       
       - name: Build Module
+        env:
+          # Point to the generic cross-compiler instead of the Android-specific one
+          CROSS_COMPILE: aarch64-linux-gnu-
         run: make
         
       - name: Strip Debug Symbols
