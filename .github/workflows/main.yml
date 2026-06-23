@@ -6,35 +6,43 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
       - name: Install Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y make gcc-aarch64-linux-gnu linux-headers-generic
+          sudo apt-get install -y make gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
       
-      - name: Build Module
+      - name: Build and Sanitize Module
         run: |
-          mkdir -p src
+          # Create a high-performance wrapper that strictly ignores the bad flags
+          echo '#!/bin/sh' > /tmp/aarch64-wrapper
+          echo 'aarch64-linux-gnu-gcc $(echo "$@" | sed "s/-mrecord-mcount//g" | sed "s/-mfentry//g" | sed "s/-mno-record-mcount//g")' >> /tmp/aarch64-wrapper
+          chmod +x /tmp/aarch64-wrapper
           
-          # We use Kbuild to set explicit flags that override the kernel's broken ones
+          # Force the use of the wrapper for all tools
+          export CC=/tmp/aarch64-wrapper
+          export AS=/tmp/aarch64-wrapper
+          export LD=aarch64-linux-gnu-ld
+          
           echo "obj-m := kpm.o" > Kbuild
-          echo "ccflags-y := -w -fno-stack-protector -mno-record-mcount -mno-mfentry -D__KERNEL__ -DMODULE" >> Kbuild
           
-          # Move our source to where Kbuild expects it
-          mv src/kpm.c .
-          
-          # Run the build
+          # Build with environment-level enforcement
           make -C /usr/src/linux-headers-$(uname -r) \
                M=$(pwd) \
                ARCH=arm64 \
                CROSS_COMPILE=aarch64-linux-gnu- \
+               KCFLAGS="-w -fno-stack-protector -D__KERNEL__ -DMODULE" \
                modules
+               
+          mv kpm.ko kpm.kpm
         
-      - name: Strip Debug Symbols
-        run: aarch64-linux-gnu-strip --strip-unneeded kpm.ko
-        
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: KPM_Final_Payload
+          path: kpm.kpm
+          
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
