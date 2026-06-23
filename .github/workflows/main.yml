@@ -11,14 +11,14 @@ jobs:
       - name: Install Toolchain
         run: |
           sudo apt-get update
-          # Install the standard aarch64 cross-compiler
-          sudo apt-get install -y gcc-aarch64-linux-gnu make linux-headers-generic
+          sudo apt-get install -y make gcc-aarch64-linux-gnu
       
       - name: Build Module
-        env:
-          # Point to the generic cross-compiler instead of the Android-specific one
-          CROSS_COMPILE: aarch64-linux-gnu-
-        run: make
+        # We define all variables inline to ensure they override the Makefile
+        run: |
+          make ARCH=arm64 \
+               CROSS_COMPILE=aarch64-linux-gnu- \
+               KDIR=/usr/src/linux-headers-$(uname -r)
         
       - name: Strip Debug Symbols
         run: aarch64-linux-gnu-strip --strip-unneeded src/kpm.ko
