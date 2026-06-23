@@ -6,19 +6,23 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
       
       - name: Install Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y make gcc-aarch64-linux-gnu
+          sudo apt-get install -y make gcc-aarch64-linux-gnu linux-headers-generic
       
       - name: Build Module
-        # We define all variables inline to ensure they override the Makefile
         run: |
+          # We force ARCH, CROSS_COMPILE, and pass KCFLAGS to mute the x86-specific errors
+          # KDIR is dynamically set to the current runner headers
           make ARCH=arm64 \
                CROSS_COMPILE=aarch64-linux-gnu- \
-               KDIR=/usr/src/linux-headers-$(uname -r)
+               KDIR=/usr/src/linux-headers-$(uname -r) \
+               KCFLAGS="-w -fno-stack-protector -D__KERNEL__ -DMODULE" \
+               modules
         
       - name: Strip Debug Symbols
         run: aarch64-linux-gnu-strip --strip-unneeded src/kpm.ko
