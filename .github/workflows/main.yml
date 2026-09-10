@@ -1,47 +1,65 @@
-name: Unstoppable Android Build
+name: Build Universal Unlock DEX
 
-on: [push]
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Install Toolchain
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y make gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-      
-      - name: Build and Sanitize Module
-        run: |
-          # 1. Ensure kpm.c exists in the root
-          # If your source is in 'src/kpm.c', move it to root
-          if [ -f "src/kpm.c" ]; then mv src/kpm.c .; fi
+    - name: Checkout
+      uses: actions/checkout@v4
+    
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+    
+    - name: Download smali
+      run: |
+        mkdir -p tools
+        curl -L -o tools/smali.jar https://github.com/google/smali/releases/download/v3.0.5/smali-3.0.5-fat.jar
+        curl -L -o tools/baksmali.jar https://github.com/google/smali/releases/download/v3.0.5/baksmali-3.0.5-fat.jar
+    
+    - name: Build DEX
+      run: |
+        java -jar tools/smali.jar assemble smali/ -o universal_unlock.dex
+        ls -la universal_unlock.dex
+    
+    - name: Verify DEX
+      run: |
+        java -jar tools/baksmali.jar disassemble universal_unlock.dex -o verify/
+        echo "DEX verified"
+    
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: universal-unlock-dex
+        path: universal_unlock.dex
+        retention-days: 90
+    
+    - name: Create Release
+      if: github.ref == 'refs/heads/main'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v1.0.${{ github.run_number }}
+        name: Universal Unlock DEX v1.0.${{ github.run_number }}
+        files: universal_unlock.dex
+        body: |
+          ## Universal Unlock DEX
           
-          # 2. Create the Kbuild file
-          echo "obj-m := kpm.o" > Kbuild
+          **Key:** `12947-ffmax`
+          **Days:** Unlimited
+          **Time:** Unlimited
           
-          # 3. Create the Wrapper
-          echo '#!/bin/sh' > /tmp/wrapper
-          echo 'aarch64-linux-gnu-gcc $(echo "$@" | sed "s/-mrecord-mcount//g" | sed "s/-mfentry//g")' >> /tmp/wrapper
-          chmod +x /tmp/wrapper
-          
-          # 4. Build
-          make -C /usr/src/linux-headers-$(uname -r) \
-               M=$(pwd) \
-               ARCH=arm64 \
-               CROSS_COMPILE=aarch64-linux-gnu- \
-               CC=/tmp/wrapper \
-               AS=/tmp/wrapper \
-               KCFLAGS="-w -fno-stack-protector -D__KERNEL__ -DMODULE" \
-               modules
-               
-          mv kpm.ko kpm.kpm
-        
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: KPM_Final_Payload
-          path: kpm.kpm
-          
+          ### Apply via MT Manager
+          1. Open target APK
+          2. Inject dex
+          3. Sign & install
+          4. Enter key
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
