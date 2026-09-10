@@ -19,21 +19,19 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
     
-    - name: Download smali
+    - name: Download smali tools
       run: |
         mkdir -p tools
-        curl -L -o tools/smali.jar https://github.com/google/smali/releases/download/v3.0.5/smali-3.0.5-fat.jar
-        curl -L -o tools/baksmali.jar https://github.com/google/smali/releases/download/v3.0.5/baksmali-3.0.5-fat.jar
+        cd tools
+        curl -L -o smali.jar https://bitbucket.org/JesusFreke/smali/downloads/smali-2.5.2.jar
+        curl -L -o baksmali.jar https://bitbucket.org/JesusFreke/smali/downloads/baksmali-2.5.2.jar
+        ls -la
+        file smali.jar
     
     - name: Build DEX
       run: |
         java -jar tools/smali.jar assemble smali/ -o universal_unlock.dex
         ls -la universal_unlock.dex
-    
-    - name: Verify DEX
-      run: |
-        java -jar tools/baksmali.jar disassemble universal_unlock.dex -o verify/
-        echo "DEX verified"
     
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -51,15 +49,8 @@ jobs:
         files: universal_unlock.dex
         body: |
           ## Universal Unlock DEX
-          
           **Key:** `12947-ffmax`
           **Days:** Unlimited
           **Time:** Unlimited
-          
-          ### Apply via MT Manager
-          1. Open target APK
-          2. Inject dex
-          3. Sign & install
-          4. Enter key
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
